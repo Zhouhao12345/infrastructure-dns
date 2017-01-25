@@ -18,16 +18,29 @@
 #    You should have received a copy of the GNU Affero General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-##############################################################################
-{'name': 'DNS connector',
- 'version': '0.1',
- 'category': 'Connector',
- 'depends': ['connector'],
- 'author': 'Elico Corp,Odoo Community Association (OCA)',
- 'license': 'AGPL-3',
- 'website': 'https://www.elico-corp.com',
- 'images': [],
- 'demo': [],
- 'data': ['dns_view.xml', 'dns_menu.xml'],
- 'installable': True,
- 'application': False}
+#############################################################################
+import openerp.tests.common as common
+from openerp.addons.connector.backend import Backend
+
+
+class TestBackend(common.TransactionCase):
+    """
+    test generic Backend
+    """
+
+    def setUp(self):
+        super(TestBackend, self).setUp()
+        self.service = "dns"
+        self.version = "1.7"
+
+    def tearDown(self):
+        super(TestBackend, self).tearDown()
+
+    def test_dnspod(self):
+        dnspod = Backend(self.service)
+        self.assertEqual(dnspod.service, self.service)
+
+    def test_child_dnspod(self):
+        dnspod = Backend(self.service)
+        child_dnspod = Backend(parent=dnspod, version=self.service)
+        self.assertEqual(child_dnspod.service, dnspod.service)

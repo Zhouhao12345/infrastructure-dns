@@ -1,56 +1,62 @@
 # -*- coding: utf-8 -*-
-# Copyright 2015 Elico Corp
-# Copyright 2016 LasLabs Inc.
-# License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
-
-from openerp import models, fields, api
-from openerp.addons.connector.connector import Environment
+##############################################################################
+#
+#    OpenERP, Open Source Management Solution
+#    Copyright (C) 2010-2015 Elico Corp (<http://www.elico-corp.com>)
+#    Authors: Liu Lixia, Augustin Cisterne-Kaas
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU Affero General Public License as
+#    published by the Free Software Foundation, either version 3 of the
+#    License, or (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU Affero General Public License for more details.
+#
+#    You should have received a copy of the GNU Affero General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+##############################################################################
+from openerp import models, fields
+from openerp.addons.connector.connector import (Environment,
+                                                install_in_connector)
 from openerp.addons.connector.checkpoint import checkpoint
+
+install_in_connector()
 
 
 def get_environment(session, model_name, backend_id):
     """ Create an environment to work with.  """
-    backend_record = session.env['dns.backend'].browse(backend_id)
+    backend_record = session.browse('dns.backend', backend_id)
     env = Environment(backend_record, session, model_name)
     return env
 
 
-class DNSBinding(models.AbstractModel):
+class DNSBinding(models.Model):
     """ Abstract Model for the Bindigs.
-    All the models used as bindings between External System and Odoo
-    (``aws.dns.record``, ``aws.dns.zone``, ...) should ``_inherit`` it.
+    All the models used as bindings between dnspod and OpenERP
+    (``dnspod.res.partner``, ``dnspod.product.product``, ...) should
+    ``_inherit`` it.
     """
     _name = 'dns.binding'
     _inherit = 'external.binding'
-    _description = 'DNS Binding (abstract)'
+    _description = 'dns Binding (abstract)'
 
-    dns_backend_id = fields.Many2one(
-        comodel_name='dns.backend',
-        string='DNS Backend',
-        store=True,
+    backend_id = fields.Many2one(
+        'dns.backend',
+        String='DNS Backend',
         required=True,
-        ondelete='restrict',
-        default=lambda s: s._default_dns_backend_id()
-    )
-    dns_id_external = fields.Char(
-        string='External ID',
-        help='ID of the record in external system.',
-    )
-    fail_date = fields.Datetime()
-
-    _sql_constraints = [
-        ('backend_uniq', 'unique(dns_backend_id, dns_id_external)',
-         'A binding already exists with the same DNS External ID.'),
-    ]
-
-    @api.model
-    def _default_dns_backend_id(self):
-        return self.env['dns.backend'].search([
-            ('is_default', '=', True),
-            ('active', '=', True),
-        ],
-            limit=1,
-        )
+        ondelete='restrict')
+    # fields.char because 0 is a valid dnspod ID
+    dns_id = fields.Char('ID on other software')
+    # state of the record synchronization with dnspod
+    state = fields.Selection(
+        [('draft', 'Draft'), ('done', 'Done'),
+         ('exception', 'Exception')], 'State',
+        default="draft",
+        help='Done when succeed otherwise Exception')
 
 
 def add_checkpoint(session, model_name, record_id, backend_id):
